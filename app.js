@@ -396,6 +396,27 @@ app.delete('/orders/:id', async (req, res) => {
     }
 });
 
+// Kiểm tra xem sản phẩm có tồn tại trong đơn hàng hay không
+app.get('/orders/contains-product/:productId', async (req, res) => {
+    try {
+        const { productId } = req.params;
+        const orders = await Order.find({ 'products.productId': productId });
+
+        if (orders.length > 0) {
+            // Trả về thông tin các đơn hàng chứa sản phẩm này
+            return res.status(200).json({
+                message: 'Sản phẩm này đã được thêm vào đơn hàng.',
+                orders: orders  // Trả về danh sách các đơn hàng
+            });
+        }
+
+        res.status(200).json({ message: 'Sản phẩm có thể xóa.' });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi khi kiểm tra sản phẩm trong đơn hàng.', error });
+    }
+});
+
+
 // Start the server
 const PORT = 3000;
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
