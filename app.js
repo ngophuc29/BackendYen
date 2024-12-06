@@ -65,6 +65,9 @@ const OrderSchema = new mongoose.Schema({
     phone: { type: String, required: true },
     note: { type: String },
     totalPrice: { type: Number, required: true },
+    shippingMethod: { type: String, required: true }, // e.g., 'standard', 'express'
+    paymentMethod: { type: String, required: true }, // e.g., 'credit_card', 'cash_on_delivery'
+    shippingFee: { type: Number, required: true }, // Shipping fee based on the method
     status: { type: String, default: 'pending' }, // e.g., pending, processing, completed, canceled
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
@@ -214,34 +217,109 @@ app.get('/orders', async (req, res) => {
 
 app.post('/orders', async (req, res) => {
     try {
-        const { customerId, products, address, phone, note, totalPrice } = req.body;
+        const { customerId, products, address, phone, note, paymentMethod, shippingMethod, shippingFee, totalPrice } = req.body;
 
+        // Tạo đơn hàng mới
         const order = new Order({
             customer: customerId,
             products,
             address,
             phone,
             note,
+            paymentMethod,
+            shippingMethod,
+            shippingFee,
             totalPrice,
         });
 
-        // Save order
+        // Lưu đơn hàng vào cơ sở dữ liệu
         await order.save();
 
-        // Add order to customer
+        // Liên kết đơn hàng với khách hàng
         await Customer.findByIdAndUpdate(customerId, { $push: { orders: order._id } });
 
         // Gửi email xác nhận đơn hàng
         const customer = await Customer.findById(customerId);
-        const productDetails = await Promise.all(products.map(async item => {
+        const productRows = await Promise.all(products.map(async item => {
             const product = await Product.findById(item.productId);
-            return `- ${product.name}: ${item.quantity} x ${product.price} VND`;
+            return `
+                <tr>
+                    <td style="padding: 8px;">${product.name}</td>
+                    <td style="padding: 8px; text-align: center;">${item.quantity}</td>
+                    <td style="padding: 8px; text-align: right;">${(product.price * item.quantity).toLocaleString()} VND</td>
+                </tr>`;
         }));
+
         const mailOptions = {
             from: 'your-email@gmail.com',
             to: customer.email,
-            subject: 'Xác nhận đơn hàng',
-            text: `Cảm ơn bạn đã đặt hàng!\n\nĐơn hàng của bạn đã được xác nhận.\n\nThông tin đơn hàng:\n${productDetails.join('\n')}\n\nTổng tiền: ${totalPrice} VND.`
+            subject: `Xác nhận đơn hàng Bird's Nest`,
+            html: `
+                <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #333;">
+                    <h1 style="color: #007bff;">Bird's Nest</h1>
+                    <p>Xin chào ${customer.name},</p>
+                    <p>Chúng tôi đã nhận được đặt hàng của bạn và đang xử lý.</p>
+                    <hr>
+                    <h2>Thông tin đơn hàng</h2>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr>
+                                <th style="border-bottom: 1px solid #ddd; padding: 8px; text-align: left;">Sản phẩm</th>
+                                <th style="border-bottom: 1px solid #ddd; padding: 8px;">Số lượng</th>
+                                <th style="border-bottom: 1px solid #ddd; padding: 8px; text-align: right;">Giá</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${productRows.join('')}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="2" style="padding: 8px; text-align: right;">Phí vận chuyển</td>
+                                <td style="padding: 8px; text-align: right;">${shippingFee.toLocaleString()} VND</td>
+                            </tr>
+                            <tr>
+                                <td colspan="2" style="padding: 8px; text-align: right;">Tổng cộng</td>
+                                <td style="padding: 8px; text-align: right; font-weight: bold;">${totalPrice.toLocaleString()} VND</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                    <hr>
+                    <h2>Thông tin khách hàng</h2>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tbody>
+                            <tr>
+                                <td style="padding: 8px; font-weight: bold;">Tên khách hàng:</td>
+                                <td style="padding: 8px;">${customer.name}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px; font-weight: bold;">Email:</td>
+                                <td style="padding: 8px;">${customer.email}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px; font-weight: bold;">Số điện thoại:</td>
+                                <td style="padding: 8px;">${phone}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px; font-weight: bold;">Địa chỉ:</td>
+                                <td style="padding: 8px;">${address}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px; font-weight: bold;">Phương thức thanh toán:</td>
+                                <td style="padding: 8px;">${paymentMethod}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px; font-weight: bold;">Phương thức vận chuyển:</td>
+                                <td style="padding: 8px;">${shippingMethod}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px; font-weight: bold;">Ghi chú:</td>
+                                <td style="padding: 8px;">${note || 'Không có'}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p style="margin-top: 20px;">Cảm ơn bạn đã mua hàng tại Bird's Nest!</p>
+                </div>
+            `
         };
 
         transporter.sendMail(mailOptions, (error, info) => {
@@ -258,6 +336,7 @@ app.post('/orders', async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 });
+
 // app.put('/orders/status/:id', async (req, res) => {
 //     try {
 //         const { status } = req.body;
