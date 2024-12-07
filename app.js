@@ -51,6 +51,7 @@ const CustomerSchema = new mongoose.Schema({
     address: { type: String },
     orders: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Order' }],
     createdAt: { type: Date, default: Date.now },
+    // isLoyal: { type: Boolean, default: false },
 });
 const Customer = mongoose.model('Customer', CustomerSchema);
 
@@ -74,6 +75,17 @@ const OrderSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: Date.now },
 });
 const Order = mongoose.model('Order', OrderSchema);
+
+const LoyalCustomerSchema = new mongoose.Schema({
+    name: { type: String },
+    phone: { type: String, required: true },
+    email: { type: String },
+    address: { type: String },
+    createdAt: { type: Date, default: Date.now },
+    isLoyal: { type: Boolean, default: true },  // Đánh dấu là khách hàng thân thiết
+});
+const LoyalCustomer = mongoose.model('LoyalCustomer', LoyalCustomerSchema);
+
 
 // CRUD Routes for Products
 app.get('/products', async (req, res) => {
@@ -201,6 +213,7 @@ app.put('/customers/:id', async (req, res) => {
         res.json(customer);
     } catch (error) {
         console.error(error);
+
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -651,7 +664,66 @@ app.get('/statistics/monthly-revenue', async (req, res) => {
 });
 
 
+//Khách Hàng thân thiết 
+app.post('/loyal-customers', async (req, res) => {
+    try {
+        // const { name, phone, email, address } = req.body;
+        const { name, phone  } = req.body;
 
+
+        // Kiểm tra tính hợp lệ của số điện thoại (bắt buộc)
+        if (!phone) {
+            return res.status(400).json({ error: 'Số điện thoại là bắt buộc!' });
+        }
+
+        // Kiểm tra số điện thoại đã tồn tại chưa
+        const existingCustomer = await LoyalCustomer.findOne({ phone });
+        if (existingCustomer) {
+            return res.status(400).json({ error: 'Khách hàng với số điện thoại này đã tồn tại.' });
+        }
+
+        // Tạo đối tượng khách hàng thân thiết mới
+        const loyalCustomer = new LoyalCustomer({
+            name: name || null,  // Nếu không có tên thì lưu là null
+            phone: phone,
+            
+        });
+
+        // Lưu khách hàng thân thiết vào MongoDB
+        await loyalCustomer.save();
+        return res.status(201).json({
+            message: 'Khách hàng thân thiết đã được lưu thành công!',
+            customer: loyalCustomer
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Có lỗi khi xử lý yêu cầu.' });
+    }
+});
+
+app.get('/loyal-customers', async (req, res) => {
+    try {
+        // Lấy tất cả khách hàng thân thiết từ cơ sở dữ liệu
+        const loyalCustomers = await LoyalCustomer.find();
+        res.status(200).json(loyalCustomers);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Có lỗi khi lấy dữ liệu khách hàng thân thiết.' });
+    }
+});
+
+app.delete('/loyal-customers/:id', async (req, res) => {
+    try {
+        const loyalCustomer = await LoyalCustomer.findByIdAndDelete(req.params.id);
+        if (!loyalCustomer) {
+            return res.status(404).json({ error: 'Khách hàng thân thiết không tìm thấy để xóa.' });
+        }
+        res.status(200).json({ message: 'Khách hàng thân thiết đã được xóa thành công.' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Có lỗi khi xóa khách hàng thân thiết.' });
+    }
+});
 
 // Start the server
 const PORT = 3000;
