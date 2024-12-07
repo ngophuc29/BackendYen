@@ -496,6 +496,162 @@ app.get('/orders/contains-product/:productId', async (req, res) => {
     }
 });
 
+ 
+
+// 1. Thống kê số lượng sản phẩm theo từng loại
+app.get('/statistics/products-by-category', async (req, res) => {
+    try {
+        const stats = await Product.aggregate([
+            { $group: { _id: "$category", count: { $sum: 1 } } }
+        ]);
+        res.json(stats);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// 2. Tổng doanh thu từ tất cả các đơn hàng
+app.get('/statistics/total-revenue', async (req, res) => {
+    try {
+        const revenue = await Order.aggregate([
+            { $group: { _id: null, totalRevenue: { $sum: "$totalPrice" } } }
+        ]);
+        res.json(revenue[0] || { totalRevenue: 0 });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// 3. Thống kê số lượng đơn hàng theo trạng thái
+app.get('/statistics/orders-by-status', async (req, res) => {
+    try {
+        const stats = await Order.aggregate([
+            { $group: { _id: "$status", count: { $sum: 1 } } }
+        ]);
+        res.json(stats);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// 4. Danh sách khách hàng với tổng giá trị đơn hàng đã mua
+// Danh sách khách hàng với tổng giá trị và số lượng sản phẩm đã mua
+app.get('/statistics/customers-total-orders', async (req, res) => {
+    try {
+        const stats = await Order.aggregate([
+            { $unwind: "$products" }, // Tách từng sản phẩm trong đơn hàng
+            {
+                $group: {
+                    _id: "$customer", // Nhóm theo khách hàng
+                    totalSpent: { $sum: "$totalPrice" }, // Tổng tiền đã chi
+                    totalProducts: { $sum: "$products.quantity" } // Tổng sản phẩm đã mua
+                }
+            },
+            {
+                $lookup: {
+                    from: "customers", // Kết nối với collection customers
+                    localField: "_id",
+                    foreignField: "_id",
+                    as: "customerDetails"
+                }
+            },
+            { $unwind: "$customerDetails" }, // Lấy chi tiết khách hàng
+            {
+                $project: {
+                    _id: 0,
+                    customer: "$customerDetails.name",
+                    totalSpent: 1,
+                    totalProducts: 1
+                }
+            }
+        ]);
+        res.json(stats);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+
+// 5. Thống kê các sản phẩm bán chạy nhất
+app.get('/statistics/top-selling-products', async (req, res) => {
+    try {
+        const stats = await Order.aggregate([
+            { $unwind: "$products" },
+            { $group: { _id: "$products.productId", totalSold: { $sum: "$products.quantity" } } },
+            {
+                $lookup: {
+                    from: "products",
+                    localField: "_id",
+                    foreignField: "_id",
+                    as: "productDetails"
+                }
+            },
+            { $unwind: "$productDetails" },
+            { $project: { _id: 0, product: "$productDetails.name", totalSold: 1 } },
+            { $sort: { totalSold: -1 } }
+        ]);
+        res.json(stats);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// 6. Thống kê tổng số lượng sản phẩm còn tồn kho
+app.get('/statistics/total-stock', async (req, res) => {
+    try {
+        // Lấy tổng số lượng tồn kho
+        const totalStock = await Product.aggregate([
+            { $group: { _id: null, totalStock: { $sum: "$stock" } } }
+        ]);
+
+        // Lấy số lượng tồn kho của từng sản phẩm
+        const productStock = await Product.aggregate([
+            {
+                $project: {
+                    name: 1, // Lấy tên sản phẩm
+                    stock: 1, // Lấy số lượng tồn kho của sản phẩm
+                }
+            }
+        ]);
+
+        // Trả về cả tổng số lượng tồn kho và số lượng tồn kho của từng sản phẩm
+        res.json({
+            totalStock: totalStock[0]?.totalStock || 0,
+            productStock
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+
+// 7. Thống kê doanh thu theo từng tháng
+app.get('/statistics/monthly-revenue', async (req, res) => {
+    try {
+        const stats = await Order.aggregate([
+            {
+                $group: {
+                    _id: { $month: "$createdAt" },
+                    totalRevenue: { $sum: "$totalPrice" }
+                }
+            },
+            { $sort: { "_id": 1 } }
+        ]);
+        res.json(stats);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+
+
 
 // Start the server
 const PORT = 3000;
