@@ -218,6 +218,28 @@ app.put('/customers/:id', async (req, res) => {
     }
 });
 
+// API xóa khách hàng
+app.delete('/customers/:id', async (req, res) => {
+    try {
+        const customerId = req.params.id;
+
+        // Tìm và xóa khách hàng
+        const customer = await Customer.findByIdAndDelete(customerId);
+        if (!customer) {
+            return res.status(404).json({ error: 'Customer not found' });
+        }
+
+        // Xóa các đơn hàng liên quan đến khách hàng (nếu cần)
+        await Order.deleteMany({ customer: customerId });
+
+        res.json({ message: 'Customer deleted successfully' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+
 // CRUD Routes for Orders
 app.get('/orders', async (req, res) => {
     try {
