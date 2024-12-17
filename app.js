@@ -23,11 +23,16 @@ app.use(cors({
 // Connect to MongoDB
 
 // Connect to MongoDB Atlas
+// mongoose.connect(process.env.MONGO_URI, {
+   
+// }).then(() => console.log('MongoDB connected')).catch(err => console.error(err));
 mongoose.connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-}).then(() => console.log('MongoDB connected')).catch(err => console.error(err));
-
+    
+    connectTimeoutMS: 30000,          // Tăng thời gian chờ kết nối lên 30 giây
+    serverSelectionTimeoutMS: 5000    // Thời gian lựa chọn server MongoDB
+})
+    .then(() => console.log('MongoDB connected'))
+    .catch(err => console.error('MongoDB connection error:', err));
 // Define Schemas and Models
 const ProductSchema = new mongoose.Schema({
     name: { type: String, required: true },
