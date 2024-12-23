@@ -13,14 +13,31 @@ app.use(bodyParser.json());
 // app.use(cors());
 app.use(express.json({ limit: '30mb' })); // Tăng giới hạn payload lên 10MB
 
-app.use(cors({
-    // origin: 'http://localhost:3001', // Cho phép chỉ từ localhost:3001
-    origin: 'https://web-ban-yen.vercel.app', // Cho phép chỉ từ localhost:3001
+// app.use(cors({
+//     // origin: 'http://localhost:3001', // Cho phép chỉ từ localhost:3001
+//     origin: 'https://web-ban-yen.vercel.app', // Cho phép chỉ từ localhost:3001
 
-    methods: ['GET', 'POST', 'PUT', 'DELETE'], // Các phương thức HTTP bạn muốn cho phép
+//     methods: ['GET', 'POST', 'PUT', 'DELETE'], // Các phương thức HTTP bạn muốn cho phép
+//     allowedHeaders: ['Content-Type', 'Authorization'] // Các header cho phép
+// }));
+
+const allowedOrigins = [
+    'https://web-ban-yen.vercel.app',
+    'http://localhost:3001'
+];
+
+app.use(cors({
+    origin: (origin, callback) => {
+        // Kiểm tra nếu origin nằm trong danh sách được phép
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true); // Cho phép yêu cầu
+        } else {
+            callback(new Error('Not allowed by CORS')); // Từ chối yêu cầu
+        }
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE'], // Các phương thức HTTP cho phép
     allowedHeaders: ['Content-Type', 'Authorization'] // Các header cho phép
 }));
-
 
 // Connect to MongoDB
 
