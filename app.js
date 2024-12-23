@@ -23,7 +23,7 @@ app.use(express.json({ limit: '30mb' })); // Tăng giới hạn payload lên 10M
 
 const allowedOrigins = [
     'https://web-ban-yen.vercel.app',
-    'http://localhost:3001'
+    'http://localhost:3001', 'http://localhost:3000'
 ];
 
 app.use(cors({
