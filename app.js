@@ -14,7 +14,9 @@ app.use(bodyParser.json());
 app.use(express.json({ limit: '30mb' })); // Tăng giới hạn payload lên 10MB
 
 app.use(cors({
-    origin: 'http://localhost:3001', // Cho phép chỉ từ localhost:3001
+    // origin: 'http://localhost:3001', // Cho phép chỉ từ localhost:3001
+    origin: 'https://web-ban-yen.vercel.app/', // Cho phép chỉ từ localhost:3001
+
     methods: ['GET', 'POST', 'PUT', 'DELETE'], // Các phương thức HTTP bạn muốn cho phép
     allowedHeaders: ['Content-Type', 'Authorization'] // Các header cho phép
 }));
