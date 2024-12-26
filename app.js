@@ -60,7 +60,7 @@ const ProductSchema = new mongoose.Schema({
     stock: { type: Number, default: 0 },
     description: { type: String },
     images: [String],
-    productCode: { type: String, required: true },
+    // productCode: { type: String, required: true },
     // quantityLimit: { type: Number, required: true },
     expirationDate: { type: Date },
     createdAt: { type: Date, default: Date.now },
