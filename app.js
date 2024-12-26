@@ -11,7 +11,7 @@ const transporter = require('./mailer');
 const app = express();
 app.use(bodyParser.json());
 // app.use(cors());
-app.use(express.json({ limit: '30mb' })); // Tăng giới hạn payload lên 10MB
+app.use(express.json({ limit: '5mb' })); // Tăng giới hạn payload lên 10MB
 
 // app.use(cors({
 //     // origin: 'http://localhost:3001', // Cho phép chỉ từ localhost:3001
